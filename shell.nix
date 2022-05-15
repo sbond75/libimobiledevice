@@ -11,6 +11,7 @@ with pkgs;
 mkShell {
   buildInputs = [
     (callPackage ./libimobiledevice.nix {})
-    usbmuxd
+    #usbmuxd
+    (callPackage ./usbmuxd2.nix {})
   ];
 }

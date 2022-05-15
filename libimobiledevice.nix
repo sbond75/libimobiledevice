@@ -44,6 +44,10 @@ stdenv.mkDerivation rec {
     openssl
   ];
 
+  patches = [
+    ./2b05e9ea4c34b62f1d32f9e348877883f2e4683f.patch
+  ];
+
   #configureFlags = [ "--disable-openssl" "--without-cython" ];
 
   meta = with lib; {
