@@ -13,5 +13,6 @@ mkShell {
     (callPackage ./libimobiledevice.nix {})
     #usbmuxd
     (callPackage ./usbmuxd2.nix {})
+    pkg-config
   ];
 }

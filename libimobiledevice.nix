@@ -16,13 +16,16 @@
 
 stdenv.mkDerivation rec {
   pname = "libimobiledevice";
-  version = "unstable-2021-11-24";
+  version = #"unstable-2022-5-10"; 
+"unstable-2021-11-24";
 
   src = fetchFromGitHub {
     owner = pname;
     repo = pname;
-    rev = "2c6121db9ad84b8aad05b937e071ff7dcc9c8867";
-    sha256 = "1h6qwqcm49znng1gbjrzslcr0phvfmn7lzsc99wwlp1nylqcjp0i";
+    rev = #"dec0438c89a020995229b08aeaee96c403c5daed"; 
+"2c6121db9ad84b8aad05b937e071ff7dcc9c8867";
+    sha256 = #"0awz7w3qza9izc5ifr439idajdzf0b0iqlyia8ac005213x7k5h5"; 
+"1h6qwqcm49znng1gbjrzslcr0phvfmn7lzsc99wwlp1nylqcjp0i";
   };
 
   outputs = [ "out" "dev" ];
@@ -49,6 +52,12 @@ stdenv.mkDerivation rec {
   ];
 
   #configureFlags = [ "--disable-openssl" "--without-cython" ];
+  #configureFlags = [ ''PACKAGE_VERSION=${version}'' ];
+  
+  #preConfigure = ''
+  #  export PACKAGE_VERSION="${version}"
+  #  echo "AAAAAAAAAAAA:" $PACKAGE_VERSION
+  #'';
 
   meta = with lib; {
     homepage = "https://github.com/libimobiledevice/libimobiledevice";
