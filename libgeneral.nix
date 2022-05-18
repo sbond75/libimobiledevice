@@ -43,6 +43,13 @@ stdenv.mkDerivation rec {
     substituteInPlace configure.ac \
       --replace "m4_esyscmd([git rev-list --count HEAD | tr -d '\n'])" 63 \
       --replace "m4_esyscmd([git rev-parse HEAD | tr -d '\n'])" 017d71edb0a12ff4fa01a39d12cd297d8b3d8d34
+
+    # Optional, fixes what appears to be a potential bug/race condition since the mutex isn't locked for this variable despite it being locked seemingly for it elsewhere: #
+    substituteInPlace libgeneral/Event.cpp \
+      --replace "uint64_t Event::members() const{" "uint64_t Event::members() const{ std::unique_lock<std::mutex> lk(_m);"
+    substituteInPlace include/libgeneral/Event.hpp \
+      --replace "std::mutex _m;" "mutable std::mutex _m;" # https://stackoverflow.com/questions/48133164/how-to-use-a-stdlock-guard-without-violating-const-correctness
+    # #
   '';
 
   #configureFlags = [ "--disable-openssl" "--without-cython" ];

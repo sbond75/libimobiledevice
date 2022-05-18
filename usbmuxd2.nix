@@ -60,7 +60,9 @@ stdenv.mkDerivation rec {
       --replace "CXXFLAGS+=\" -std=c++17\"" "
         CXXFLAGS+=\" -std=c++17\"
         LDFLAGS+=\" $($PKG_CONFIG --libs libimobiledevice-1.0) -limobiledevice-1.0\"
-      " #AC_MSG_ERROR([$($PKG_CONFIG --list-all 2>&1)]) #<--doesn't work for testing purposes
+        AC_DEFINE([SOCKET_PATH], \"/var/run/usbmuxd.d/usbmuxd\", [Desc]) # Optional, only for more flexible perms on the /var/run pid lock and this socket created by ClientManager.cpp
+      "
+      # Note for the above: AC_MSG_ERROR([$($PKG_CONFIG --list-all 2>&1)]) #<--doesn't work for testing purposes
 
       #--replace "udev/Makefile" "" \
       #--replace "systemd/Makefile" ""
@@ -69,12 +71,97 @@ stdenv.mkDerivation rec {
       --replace "#include \"Muxer.hpp\"" "
         #include \"Muxer.hpp\"
         #include \"Manager/WIFIDeviceManager-avahi.hpp\"
-      "
+      " \
+      --replace "_finalUnrefEvent.wait();" "fprintf(stderr, \"_finalUnrefEvent.members(): %ju\n\", _finalUnrefEvent.members()); if (_finalUnrefEvent.members() > 0) _finalUnrefEvent.wait();" # <--Optional stuff
+    
     substituteInPlace usbmuxd2/Manager/WIFIDeviceManager.cpp \
       --replace "#include \"WIFIDeviceManager.hpp\"" "
         #include \"WIFIDeviceManager.hpp\"
         #include \"Manager/WIFIDeviceManager-avahi.hpp\"
       "
+
+    # Optional, only for more flexible perms on the /var/run pid lock
+    substituteInPlace usbmuxd2/main.cpp \
+      --replace "unlink(lockfile);" "if (unlink(lockfile) == -1) { perror(\"unlink failed\"); }" \
+      --replace "int main(int argc, const char * argv[]) {" "
+        int main(int argc, const char * argv[]) {
+          struct group* gr;
+      " \
+      --replace "static const char *lockfile = \"/var/run/usbmuxd.pid\";" \
+        "#include <grp.h>
+static const char *lockfile = \"/var/run/usbmuxd.d/usbmuxd.pid\";" \
+      --replace "cretassure((lfd = open(lockfile, O_RDONLY|O_CREAT, 0644)) != -1, \"Could not open lockfile\");" "
+        mkdir(\"/var/run/usbmuxd.d\", 0775);
+        if (chmod(\"/var/run/usbmuxd.d\", 0775) == -1) { // We need to do this again due to umask removing from the perms in any open or mkdir system calls. umask is like a subtraction from those perms to provide sensible defaults for 0777 basically.
+            perror(\"Error in chmod for usbmuxd.d\");
+        }
+        gr = getgrnam(\"iosbackup\");
+        if (gr != nullptr) {
+          if (chown(\"/var/run/usbmuxd.d\", 0 /*root*/, gr->gr_gid) == -1)
+            perror(\"Error in chown for usbmuxd.d\");
+        }
+        else {
+          fputs(\"getgrnam failed, continuing anyway\", stderr);
+        }
+        if ((lfd = open(lockfile, O_RDONLY|O_CREAT, 0664)) == -1) {
+          perror(\"Could not open lockfile in 1st open call\");
+          goto error;
+        }
+        if (gr != nullptr) {
+          fprintf(stderr, \"chown for lockfile: %ju %ju\n\", getuid(), gr->gr_gid);
+          if (chown(lockfile, getuid(), gr->gr_gid) == -1)
+            perror(\"Error in chown for lockfile\");
+          if (chmod(lockfile, 0664) == -1) // We need to do this again due to umask removing from the perms in any open or mkdir system calls. umask is like a subtraction from those perms to provide sensible defaults for 0777 basically.
+            perror(\"Error in chmod for lockfile\");
+        }
+      " \
+      --replace "cretassure((lfd = open(lockfile, O_WRONLY|O_CREAT|O_TRUNC|O_EXCL, 0644)) != -1, \"Could not open lockfile\");" "
+      if ((lfd = open(lockfile, O_WRONLY|O_CREAT|O_TRUNC|O_EXCL, 0664)) == -1) {
+        perror(\"Could not open lockfile in 2nd open call\");
+        goto error;
+      }" \
+      --replace "static pthread_mutex_t mlck = {};" "static int result; static int sig; static sigset_t sigset_; static bool exitMain = false;" \
+      --replace "cassure(!pthread_mutex_init(&mlck, NULL));" "" \
+      --replace "cassure(!pthread_mutex_lock(&mlck));" "" \
+      --replace "cassure(!pthread_mutex_unlock(&mlck));" "exitMain = true; return;" \
+      --replace "pthread_mutex_lock(&mlck);" "
+  sigemptyset(&sigset_);
+  //sigaddset(&sigset_, SIGUSR1);
+  sigfillset(&sigset_); // Block all signals (the signal handlers won't run, only sigwait dequeues them basically) ( https://stackoverflow.com/questions/8093755/how-to-block-all-signals-in-thread-without-using-sigwait , https://stackoverflow.com/questions/6326290/about-the-ambiguous-description-of-sigwait )
+  sigprocmask(SIG_BLOCK, &sigset_, NULL);
+
+  do {
+    result = sigwait(&sigset_, &sig);
+    if(result == 0) {
+      printf(\"sigwait got signal: %d\n\", sig);
+      handle_signal(sig); // Manually invoke the signal handler
+    }
+    else {
+      fputs(\"sigwait returned error\", stderr);
+      break;
+    }
+  } while (!exitMain);
+      " \
+    --replace "close(lfd);" "close(lfd); if (chown(lockfile, getuid(), gr->gr_gid) == -1) {
+            perror(\"Error in chown for lockfile\"); }
+          if (chmod(lockfile, 0664) == -1) { // We need to do this again due to umask removing from the perms in any open or mkdir system calls. umask is like a subtraction from those perms to provide sensible defaults for 0777 basically.
+            perror(\"Error in chmod for lockfile\"); }"
+
+    # Optional, only for more flexible perms on the /var/run pid lock, *except* there is a typo fix for the unlink() error handling in `retassure(unlink(socket_path) != 1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));` which should be `retassure(unlink(socket_path) != -1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));`
+    substituteInPlace usbmuxd2/Manager/ClientManager.cpp \
+      --replace "ClientManager::ClientManager(std::shared_ptr<gref_Muxer> mux)" "#include <sys/types.h>
+#include <grp.h>
+ClientManager::ClientManager(std::shared_ptr<gref_Muxer> mux)" \
+      --replace "struct sockaddr_un bind_addr = {};" "struct sockaddr_un bind_addr = {}; struct group* gr;" \
+      --replace "retassure(unlink(socket_path) != 1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));" "retassure(unlink(socket_path) != -1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));" \
+      --replace "assure(!chmod(socket_path, 0666));" "if (chmod(socket_path, 0666) == -1){ perror(\"chmod in ClientManager failed\"); } else {
+        gr = getgrnam(\"iosbackup\");
+        if (gr != nullptr) {
+           if (chown(socket_path, getuid(), gr->gr_gid) == -1){ perror(\"chmod in ClientManager failed\"); }
+        }
+        else {
+          fputs(\"getgrnam failed in ClientManager, continuing anyway\", stderr);
+        }}"
   '';
 
   #configureFlags = [ "--disable-openssl" "--without-cython" ];
