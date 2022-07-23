@@ -43,7 +43,10 @@ stdenv.mkDerivation rec {
   propagatedBuildInputs = [
     glib
     libusb
-    (callPackage ./libimobiledevice.nix {})
+
+    #(callPackage ./libimobiledevice.nix {})
+    (callPackage ./libimobiledevice_unstable-2021-11-24.nix {})
+    
     libplist
     libusbmuxd
     (callPackage ./libimobiledevice-glue.nix {})
@@ -162,6 +165,25 @@ ClientManager::ClientManager(std::shared_ptr<gref_Muxer> mux)" \
         else {
           fputs(\"getgrnam failed in ClientManager, continuing anyway\", stderr);
         }}"
+
+    # Optional, for nicer info about errors
+    substituteInPlace usbmuxd2/Devices/WIFIDevice.cpp \
+      --replace "assure(!idevice_new_with_options(&_idev,_serial, IDEVICE_LOOKUP_NETWORK));" "idevice_error_t retval = idevice_new_with_options(&_idev,_serial, IDEVICE_LOOKUP_NETWORK);
+    if (retval) {
+	fprintf(stderr, \"idevice_new_with_options gave error: %d\n\", retval);
+	// https://docs.libimobiledevice.org/libimobiledevice/latest/libimobiledevice_8h.html#af8700e72c67d927a6a9ec7688fe87c1f :
+	// idevice_error_t {
+	//   IDEVICE_E_SUCCESS = 0,
+	//   IDEVICE_E_INVALID_ARG = -1,
+	//   IDEVICE_E_UNKNOWN_ERROR = -2,
+	//   IDEVICE_E_NO_DEVICE = -3,
+	//   IDEVICE_E_NOT_ENOUGH_DATA = -4,
+	//   IDEVICE_E_SSL_ERROR = -6,
+	//   IDEVICE_E_TIMEOUT = -7
+	// }
+	//  	Error Codes.
+    }
+    assure(!retval);"
   '';
 
   #configureFlags = [ "--disable-openssl" "--without-cython" ];

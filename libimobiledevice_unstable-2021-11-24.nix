@@ -16,16 +16,13 @@
 
 stdenv.mkDerivation rec {
   pname = "libimobiledevice";
-  version = #"unstable-2022-5-10"; 
-"unstable-2021-11-24";
+  version = "unstable-2022-5-10";
 
   src = fetchFromGitHub {
     owner = pname;
     repo = pname;
-    rev = #"dec0438c89a020995229b08aeaee96c403c5daed"; 
-"2c6121db9ad84b8aad05b937e071ff7dcc9c8867";
-    sha256 = #"0awz7w3qza9izc5ifr439idajdzf0b0iqlyia8ac005213x7k5h5"; 
-"1h6qwqcm49znng1gbjrzslcr0phvfmn7lzsc99wwlp1nylqcjp0i";
+    rev = "dec0438c89a020995229b08aeaee96c403c5daed";
+    sha256 = "0awz7w3qza9izc5ifr439idajdzf0b0iqlyia8ac005213x7k5h5";
   };
 
   outputs = [ "out" "dev" ];
@@ -48,12 +45,11 @@ stdenv.mkDerivation rec {
   ];
 
   patches = [
-    ./2b05e9ea4c34b62f1d32f9e348877883f2e4683f.patch
+    #./2b05e9ea4c34b62f1d32f9e348877883f2e4683f.patch
   ];
 
   #configureFlags = [ "--disable-openssl" "--without-cython" ];
-  #configureFlags = [ ''PACKAGE_VERSION=${version}'' ];
-  configureFlags = [ "--enable-debug" ];
+  configureFlags = [ ''PACKAGE_VERSION=${version}''  "--enable-debug" ];
   
   #preConfigure = ''
   #  export PACKAGE_VERSION="${version}"
