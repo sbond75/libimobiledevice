@@ -49,7 +49,7 @@ stdenv.mkDerivation rec {
   ];
 
   #configureFlags = [ "--disable-openssl" "--without-cython" ];
-  configureFlags = [ ''PACKAGE_VERSION=${version}''  "--enable-debug" ];
+  configureFlags = [ ''PACKAGE_VERSION=${version}'' "--enable-debug" ];
   
   #preConfigure = ''
   #  export PACKAGE_VERSION="${version}"

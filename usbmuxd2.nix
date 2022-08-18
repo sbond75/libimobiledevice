@@ -16,6 +16,7 @@
 , git
 , autoconf
 , avahi
+, libimobiledevice
 }:
 
 stdenv.mkDerivation rec {
@@ -45,7 +46,8 @@ stdenv.mkDerivation rec {
     libusb
 
     #(callPackage ./libimobiledevice.nix {})
-    (callPackage ./libimobiledevice_unstable-2021-11-24.nix {})
+    #(callPackage ./libimobiledevice_unstable-2021-11-24.nix {})
+    libimobiledevice
     
     libplist
     libusbmuxd
@@ -194,6 +196,8 @@ ClientManager::ClientManager(std::shared_ptr<gref_Muxer> mux)" \
     configureFlags="$configureFlags --with-systemdsystemunitdir=$out/lib/systemd/system"
     #configureFlags="$configureFlags --with-libimobiledevice"
   '';
+
+  autoreconfFlags = [ "--enable-debug" ];
 
   meta = with lib; {
     homepage = "https://github.com/tihmstar/usbmuxd2";
