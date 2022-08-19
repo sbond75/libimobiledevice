@@ -39,7 +39,9 @@ stdenv.mkDerivation rec {
     libgcrypt
     libplist
     libtasn1
-    libusbmuxd
+    #libusbmuxd
+    #(enableDebugging (callPackage ./libusbmuxd.nix {}))
+    (callPackage ./libusbmuxd.nix {})
     (callPackage ./libimobiledevice-glue.nix {})
     openssl
   ];
@@ -50,6 +52,8 @@ stdenv.mkDerivation rec {
 
   #configureFlags = [ "--disable-openssl" "--without-cython" ];
   configureFlags = [ ''PACKAGE_VERSION=${version}'' "--enable-debug" ];
+
+  dontStrip = true;
   
   #preConfigure = ''
   #  export PACKAGE_VERSION="${version}"
@@ -58,6 +62,14 @@ stdenv.mkDerivation rec {
 
   #preConfigure = "./autogen.sh --enable-debug";
 
+  patchPhase = ''
+    substituteInPlace src/idevice.c --replace 'if (res > 0) {' 'printf("usbmuxd_get_device returned: %d\n", res); if (res > 0) {' \
+
+    substituteInPlace common/debug.c --replace "void internal_set_debug_level(int level)
+    {" "void internal_set_debug_level(int level) { libusbmuxd_set_debug_level(level > 1 ? 99 : level); // (This requires debug level 2 or higher for libusbmuxd logs to show and uses 99 as an arbitrary large number. Tip: in the usbmuxd2 command line, use `-debug -debug` to get debug level of 2)"
+    # (^last `--replace` is optional)
+  '';
+      
   meta = with lib; {
     homepage = "https://github.com/libimobiledevice/libimobiledevice";
     description = "A software library that talks the protocols to support iPhone®, iPod Touch® and iPad® devices on Linux";

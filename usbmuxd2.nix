@@ -17,6 +17,7 @@
 , autoconf
 , avahi
 , libimobiledevice
+, enableDebugging
 }:
 
 stdenv.mkDerivation rec {
@@ -46,11 +47,19 @@ stdenv.mkDerivation rec {
     libusb
 
     #(callPackage ./libimobiledevice.nix {})
-    #(callPackage ./libimobiledevice_unstable-2021-11-24.nix {})
-    libimobiledevice
+    #(enableDebugging (callPackage ./libimobiledevice_unstable-2021-11-24.nix {}))
+    (callPackage ./libimobiledevice_unstable-2021-11-24.nix {})
+    #libimobiledevice
     
     libplist
-    libusbmuxd
+    #libusbmuxd
+    #(enableDebugging (callPackage ./libusbmuxd.nix {}))
+    (callPackage ./libusbmuxd.nix {})
+    # (libusbmuxd.overrideAttrs (oldAttrs: rec {
+    #   patchPhase = (oldAttrs.patchPhase or "") + ''
+    #     #substituteInPlace src/idevice.c --replace 'if (res > 0) {' 'printf("usbmuxd_get_device returned: %d\n", res); if (res > 0) {'
+    #   '';
+    # }))
     (callPackage ./libimobiledevice-glue.nix {})
     avahi
   ];
@@ -151,6 +160,8 @@ static const char *lockfile = \"/var/run/usbmuxd.d/usbmuxd.pid\";" \
             perror(\"Error in chown for lockfile\"); }
           if (chmod(lockfile, 0664) == -1) { // We need to do this again due to umask removing from the perms in any open or mkdir system calls. umask is like a subtraction from those perms to provide sensible defaults for 0777 basically.
             perror(\"Error in chmod for lockfile\"); }"
+    #--replace "int main(int argc, const char * argv[]) {" "int main(int argc, const char * argv[]) { libusbmuxd_set_debug_level(99); // (arbitrary number used here to get it relatively high)"
+    # (^last `--replace` is optional)
 
     # Optional, only for more flexible perms on the /var/run pid lock, *except* there is a typo fix for the unlink() error handling in `retassure(unlink(socket_path) != 1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));` which should be `retassure(unlink(socket_path) != -1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));`
     substituteInPlace usbmuxd2/Manager/ClientManager.cpp \
@@ -192,13 +203,24 @@ ClientManager::ClientManager(std::shared_ptr<gref_Muxer> mux)" \
   #configureFlags = [ "--with-udevrulesdir=${out}/lib/udev" ];
 
   preConfigure = ''
+    echo "@@@@@@@@@@@@@@@@@@@@@@ preConfigure"
     configureFlags="$configureFlags --with-udevrulesdir=$out/lib/udev/rules.d"
     configureFlags="$configureFlags --with-systemdsystemunitdir=$out/lib/systemd/system"
     #configureFlags="$configureFlags --with-libimobiledevice"
   '';
 
-  autoreconfFlags = [ "--enable-debug" ];
+  #autoreconfFlags = [ "--enable-debug" ];
 
+  autoreconfPhase = ''
+    runHook preAutoreconf
+    NOCONFIGURE=1 ./autogen.sh ''${autoreconfFlags:---install --force --verbose} --enable-debug
+    runHook postAutoreconf
+  '';
+
+  configureFlags = [ "--enable-debug" ];
+
+  dontStrip = true;
+  
   meta = with lib; {
     homepage = "https://github.com/tihmstar/usbmuxd2";
     platforms = platforms.linux ++ platforms.darwin;

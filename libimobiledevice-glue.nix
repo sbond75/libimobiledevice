@@ -10,6 +10,8 @@
 , glib
 , libplist
 , libusbmuxd
+, enableDebugging
+, callPackage
 }:
 
 stdenv.mkDerivation rec {
@@ -37,9 +39,13 @@ stdenv.mkDerivation rec {
     libgcrypt
     libplist
     libtasn1
-    libusbmuxd
+    #libusbmuxd
+    #(enableDebugging (callPackage ./libusbmuxd.nix {}))
+    (callPackage ./libusbmuxd.nix {})
     libtool
   ];
+
+  dontStrip = true;
 
   meta = with lib; {
     homepage = "https://github.com/libimobiledevice/libimobiledevice-glue";
