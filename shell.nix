@@ -11,11 +11,13 @@ with pkgs;
 mkShell {
   buildInputs = [
     #(callPackage ./libimobiledevice.nix {})
-    (enableDebugging (callPackage ./libimobiledevice_unstable-2021-11-24.nix {}))
+    #(enableDebugging (callPackage ./libimobiledevice_unstable-2021-11-24.nix {}))
+    (callPackage ./libimobiledevice_unstable-2021-11-24.nix {})
     #libimobiledevice
     
     #usbmuxd
-    (enableDebugging (callPackage ./usbmuxd2.nix {}))
+    #(enableDebugging (callPackage ./usbmuxd2.nix {}))
+    (callPackage ./usbmuxd2.nix {})
     pkg-config
   ];
 }
