@@ -170,7 +170,7 @@ static const char *lockfile = \"/var/run/usbmuxd.d/usbmuxd.pid\";" \
 ClientManager::ClientManager(std::shared_ptr<gref_Muxer> mux)" \
       --replace "struct sockaddr_un bind_addr = {};" "struct sockaddr_un bind_addr = {}; struct group* gr;" \
       --replace "retassure(unlink(socket_path) != 1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));" "retassure(unlink(socket_path) != -1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));" \
-      --replace "assure(!chmod(socket_path, 0666));" "if (chmod(_listenfd, 0660) == -1){ perror(\"chmod in ClientManager failed\"); } else { 
+      --replace "assure(!chmod(socket_path, 0666));" "if (chmod(socket_path, 0660) == -1){ perror(\"chmod in ClientManager failed\"); } else { 
         if (gr != nullptr) {
            if (chown(socket_path, getuid(), gr->gr_gid) == -1){ perror(\"chown in ClientManager failed\"); }
         }
