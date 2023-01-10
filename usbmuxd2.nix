@@ -174,7 +174,7 @@ ClientManager::ClientManager(std::shared_ptr<gref_Muxer> mux)" \
       --replace "retassure((_listenfd = socket(AF_UNIX, SOCK_STREAM, 0))>=0, \"socket() failed: %s\", strerror(errno));" "retassure((_listenfd = socket(AF_UNIX, SOCK_STREAM, 0))>=0, \"socket() failed: %s\", strerror(errno)); if (fchmod(_listenfd, 0660) == -1){ perror(\"fchmod in ClientManager failed\"); } else {
         gr = getgrnam(\"iosbackup\");
         if (gr != nullptr) {
-           if (chown(socket_path, getuid(), gr->gr_gid) == -1){ perror(\"chmod in ClientManager failed\"); }
+           if (fchown(_listenfd, getuid(), gr->gr_gid) == -1){ perror(\"fchown in ClientManager failed\"); }
         }
         else {
           fputs(\"getgrnam failed in ClientManager, continuing anyway\", stderr);
