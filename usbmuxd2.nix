@@ -170,7 +170,13 @@ static const char *lockfile = \"/var/run/usbmuxd.d/usbmuxd.pid\";" \
 ClientManager::ClientManager(std::shared_ptr<gref_Muxer> mux)" \
       --replace "struct sockaddr_un bind_addr = {};" "struct sockaddr_un bind_addr = {}; struct group* gr;" \
       --replace "retassure(unlink(socket_path) != 1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));" "retassure(unlink(socket_path) != -1 || errno == ENOENT, \"unlink(%s) failed: %s\", socket_path, strerror(errno));" \
-      --replace "assure(!chmod(socket_path, 0666));" "" \
+      --replace "assure(!chmod(socket_path, 0666));" "if (chmod(_listenfd, 0660) == -1){ perror(\"chmod in ClientManager failed\"); } else { 
+        if (gr != nullptr) {
+           if (chown(socket_path, getuid(), gr->gr_gid) == -1){ perror(\"chown in ClientManager failed\"); }
+        }
+        else {
+          fputs(\"getgrnam failed in ClientManager, continuing anyway\", stderr);
+        }}" \
       --replace "retassure((_listenfd = socket(AF_UNIX, SOCK_STREAM, 0))>=0, \"socket() failed: %s\", strerror(errno));" "retassure((_listenfd = socket(AF_UNIX, SOCK_STREAM, 0))>=0, \"socket() failed: %s\", strerror(errno)); if (fchmod(_listenfd, 0660) == -1){ perror(\"fchmod in ClientManager failed\"); } else {
         gr = getgrnam(\"iosbackup\");
         if (gr != nullptr) {
@@ -179,7 +185,7 @@ ClientManager::ClientManager(std::shared_ptr<gref_Muxer> mux)" \
         else {
           fputs(\"getgrnam failed in ClientManager, continuing anyway\", stderr);
         }}"
-    # ^^ https://stackoverflow.com/questions/35424970/unix-socket-permissions-linux , https://stackoverflow.com/questions/11781134/change-linux-socket-file-permissions/74329441#74329441 for the fchmod -- it should happen before the bind() call and after socket() for best security, since no other process can use it before bind() since it has no filepath yet, so we can set perms on the file referred to by the fd before the bind call.
+    # ^^ https://stackoverflow.com/questions/35424970/unix-socket-permissions-linux , https://stackoverflow.com/questions/11781134/change-linux-socket-file-permissions/74329441#74329441 for the fchmod -- it should happen before the bind() call and after socket() for best security, since no other process can use it before bind() since it has no filepath yet, so we can set perms on the file referred to by the fd before the bind call. BUT, note that the fchown doesn't seem to work and the fchmod results in srw-r----- perms... so we do the chmod on the resulting socket_path from the `bind` call anyway to *widen* it to 0660 so that others have `0` access..
 
     # Optional, for nicer info about errors
     substituteInPlace usbmuxd2/Devices/WIFIDevice.cpp \
