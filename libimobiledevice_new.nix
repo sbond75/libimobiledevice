@@ -36,7 +36,7 @@ stdenv.mkDerivation rec {
   ];
 
   propagatedBuildInputs = [
-    gnutls
+    #gnutls
     #libgcrypt
     (callPackage ./libplist_new.nix {enablePython=enablePython;})
     #libtasn1
