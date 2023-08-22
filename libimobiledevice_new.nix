@@ -42,7 +42,7 @@ stdenv.mkDerivation rec {
     libtasn1
     (callPackage ./libusbmuxd_new.nix {enablePython=enablePython;})
     (callPackage ./libimobiledevice-glue_new.nix {enablePython=enablePython;})
-    openssl
+    #openssl
     ] ++ (if enablePython then [
       python3
     ] else []) ++ [
