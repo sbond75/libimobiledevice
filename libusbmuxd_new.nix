@@ -31,8 +31,8 @@ stdenv.mkDerivation rec {
     ];
 
     buildInputs = [
-      (callPackage ./libplist_new.nix {enablePython=enablePython;})
-      (callPackage ./libimobiledevice-glue_new.nix {})
+      #(callPackage ./libplist_new.nix {enablePython=enablePython;})
+      #(callPackage ./libimobiledevice-glue_new.nix {})
     ];
 
     meta = with lib; {
