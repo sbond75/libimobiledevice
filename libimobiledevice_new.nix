@@ -37,9 +37,9 @@ stdenv.mkDerivation rec {
 
   propagatedBuildInputs = [
     gnutls
-    libgcrypt
+    #libgcrypt
     (callPackage ./libplist_new.nix {enablePython=enablePython;})
-    libtasn1
+    #libtasn1
     (callPackage ./libusbmuxd_new.nix {enablePython=enablePython;})
     (callPackage ./libimobiledevice-glue_new.nix {enablePython=enablePython;})
     #openssl
